@@ -20,6 +20,7 @@ export interface WardrobeItem {
   tags: string[];
   recommendedDays?: DayOfWeek[];
   isFavorite?: boolean;
+  isTransparentCutout?: boolean;
   notes?: string;
   createdAt: string;
 }
