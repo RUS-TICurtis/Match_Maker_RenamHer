@@ -23,11 +23,11 @@ interface SlotMachineTierProps {
   onSelectIndex: (index: number) => void;
   isLocked: boolean;
   onToggleLock: () => void;
-  height?: number;
+  height: number;
+  showDivider?: boolean;
 }
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const ITEM_WIDTH = Math.min(SCREEN_WIDTH - 32, 420);
 
 export function SlotMachineTier({
   category,
@@ -37,7 +37,8 @@ export function SlotMachineTier({
   onSelectIndex,
   isLocked,
   onToggleLock,
-  height = 145,
+  height,
+  showDivider = true,
 }: SlotMachineTierProps) {
   const scheme = useColorScheme();
   const theme = Colors[scheme === 'dark' ? 'dark' : 'light'];
@@ -47,7 +48,7 @@ export function SlotMachineTier({
 
   const handleMomentumScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const offsetX = e.nativeEvent.contentOffset.x;
-    const newIndex = Math.round(offsetX / ITEM_WIDTH);
+    const newIndex = Math.round(offsetX / SCREEN_WIDTH);
     if (newIndex >= 0 && newIndex < items.length && newIndex !== selectedIndex) {
       onSelectIndex(newIndex);
     }
@@ -68,49 +69,8 @@ export function SlotMachineTier({
   };
 
   return (
-    <View style={[styles.container, { height, borderColor: isLocked ? theme.gold : theme.border }]}>
-      {/* Tier Header Bar */}
-      <View style={[styles.headerOverlay, { backgroundColor: isLocked ? 'rgba(217, 119, 6, 0.15)' : 'rgba(0,0,0,0.35)' }]}>
-        <View style={styles.headerLeft}>
-          <Text style={[styles.categoryBadge, { color: isLocked ? theme.gold : '#FFFFFF' }]}>
-            {title.toUpperCase()}
-          </Text>
-          {currentItem && (
-            <View style={styles.itemMeta}>
-              <View
-                style={[
-                  styles.colorDot,
-                  { backgroundColor: currentItem.primaryColor, borderColor: '#FFFFFF' },
-                ]}
-              />
-              <Text style={styles.itemName} numberOfLines={1}>
-                {currentItem.name}
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* Lock / Unlock Button */}
-        <Pressable
-          onPress={onToggleLock}
-          style={[
-            styles.lockButton,
-            { backgroundColor: isLocked ? theme.gold : 'rgba(255,255,255,0.2)' },
-          ]}
-          hitSlop={8}
-          accessibilityLabel={isLocked ? `Unlock ${title}` : `Lock ${title}`}>
-          <Ionicons
-            name={isLocked ? 'lock-closed' : 'lock-open-outline'}
-            size={14}
-            color={isLocked ? '#000000' : '#FFFFFF'}
-          />
-          <Text style={[styles.lockText, { color: isLocked ? '#000000' : '#FFFFFF' }]}>
-            {isLocked ? 'LOCKED' : 'LOCK'}
-          </Text>
-        </Pressable>
-      </View>
-
-      {/* Swipeable / Draggable Image Carousel */}
+    <View style={[styles.tierContainer, { height }]}>
+      {/* Swipeable Section Carousel */}
       <FlatList
         ref={flatListRef}
         data={items}
@@ -119,44 +79,86 @@ export function SlotMachineTier({
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         scrollEnabled={!isLocked}
-        snapToInterval={ITEM_WIDTH}
+        snapToInterval={SCREEN_WIDTH}
         decelerationRate="fast"
         onMomentumScrollEnd={handleMomentumScrollEnd}
         initialScrollIndex={selectedIndex < items.length ? selectedIndex : 0}
         getItemLayout={(_, index) => ({
-          length: ITEM_WIDTH,
-          offset: ITEM_WIDTH * index,
+          length: SCREEN_WIDTH,
+          offset: SCREEN_WIDTH * index,
           index,
         })}
         renderItem={({ item }) => (
-          <View style={[styles.imageContainer, { width: ITEM_WIDTH, height }]}>
+          <View style={[styles.imageSlot, { width: SCREEN_WIDTH, height }]}>
             <Image
               source={{ uri: item.imageUrl }}
               style={styles.image}
-              contentFit="cover"
-              transition={200}
+              contentFit="contain"
+              transition={150}
             />
-            {isLocked && <View style={styles.lockedDimOverlay} />}
+            {isLocked && <View style={styles.lockedTint} />}
           </View>
         )}
       />
 
-      {/* Manual Step Arrows for ease of use */}
+      {/* Subtle Floating Info Pill (Top-Left) */}
+      {currentItem && (
+        <View style={styles.floatingInfoPill}>
+          <Text style={styles.categoryLabel}>{title.toUpperCase()}</Text>
+          <View style={styles.pillDivider} />
+          <View
+            style={[styles.colorDot, { backgroundColor: currentItem.primaryColor }]}
+          />
+          <Text style={styles.itemName} numberOfLines={1}>
+            {currentItem.name}
+          </Text>
+        </View>
+      )}
+
+      {/* Minimal Floating Lock Icon (Top-Right) */}
+      <Pressable
+        onPress={onToggleLock}
+        style={[
+          styles.floatingLockBtn,
+          {
+            backgroundColor: isLocked ? theme.gold : 'rgba(15, 23, 42, 0.4)',
+          },
+        ]}
+        hitSlop={10}
+        accessibilityLabel={isLocked ? `Unlock ${title}` : `Lock ${title}`}>
+        <Ionicons
+          name={isLocked ? 'lock-closed' : 'lock-open-outline'}
+          size={12}
+          color={isLocked ? '#000000' : '#FFFFFF'}
+        />
+      </Pressable>
+
+      {/* Faint Horizontal Seam / Divider Guide */}
+      {showDivider && (
+        <View
+          style={[
+            styles.seamGuide,
+            { backgroundColor: scheme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' },
+          ]}
+        />
+      )}
+
+      {/* Discrete Touch Indicators */}
       {!isLocked && selectedIndex > 0 && (
         <Pressable
-          style={[styles.arrowButton, styles.leftArrow]}
+          style={[styles.arrowBtn, styles.leftArrow]}
           onPress={handlePrev}
-          hitSlop={8}>
-          <Ionicons name="chevron-back" size={20} color="#FFFFFF" />
+          hitSlop={12}>
+          <Ionicons name="chevron-back" size={16} color="rgba(255,255,255,0.6)" />
         </Pressable>
       )}
 
       {!isLocked && selectedIndex < items.length - 1 && (
         <Pressable
-          style={[styles.arrowButton, styles.rightArrow]}
+          style={[styles.arrowBtn, styles.rightArrow]}
           onPress={handleNext}
-          hitSlop={8}>
-          <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
+          hitSlop={12}>
+          <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.6)" />
         </Pressable>
       )}
     </View>
@@ -164,101 +166,97 @@ export function SlotMachineTier({
 }
 
 const styles = StyleSheet.create({
-  container: {
+  tierContainer: {
     width: '100%',
-    maxWidth: ITEM_WIDTH,
-    alignSelf: 'center',
-    borderRadius: 16,
-    overflow: 'hidden',
-    borderWidth: 1.5,
-    marginVertical: 4,
     position: 'relative',
-    backgroundColor: '#1E293B',
+    overflow: 'hidden',
   },
-  headerOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  imageSlot: {
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flex: 1,
-  },
-  categoryBadge: {
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 1,
-  },
-  itemMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    flex: 1,
-  },
-  colorDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    borderWidth: 1,
-  },
-  itemName: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '600',
-    flexShrink: 1,
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-  lockButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-  },
-  lockText: {
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  imageContainer: {
+    justifyContent: 'center',
     position: 'relative',
   },
   image: {
-    width: '100%',
+    width: '90%',
     height: '100%',
   },
-  lockedDimOverlay: {
+  lockedTint: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(217, 119, 6, 0.08)',
+    backgroundColor: 'rgba(217, 119, 6, 0.05)',
   },
-  arrowButton: {
+  floatingInfoPill: {
+    position: 'absolute',
+    top: 6,
+    left: 12,
+    zIndex: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    gap: 5,
+    maxWidth: SCREEN_WIDTH * 0.6,
+  },
+  categoryLabel: {
+    color: '#94A3B8',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+  },
+  pillDivider: {
+    width: 1,
+    height: 8,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  colorDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    borderWidth: 0.5,
+    borderColor: '#FFFFFF',
+  },
+  itemName: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '600',
+    flexShrink: 1,
+  },
+  floatingLockBtn: {
+    position: 'absolute',
+    top: 6,
+    right: 12,
+    zIndex: 10,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  seamGuide: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    zIndex: 5,
+  },
+  arrowBtn: {
     position: 'absolute',
     top: '50%',
-    marginTop: -16,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    marginTop: -14,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 5,
   },
   leftArrow: {
-    left: 8,
+    left: 6,
   },
   rightArrow: {
-    right: 8,
+    right: 6,
   },
 });

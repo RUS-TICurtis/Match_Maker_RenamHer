@@ -1,20 +1,19 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   Pressable,
   Alert,
   Modal,
   Dimensions,
   useColorScheme,
+  useWindowDimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { SlotMachineTier } from '@/components/SlotMachineTier';
-import { DayThemeBanner } from '@/components/DayThemeBanner';
 import { INITIAL_WARDROBE_ITEMS } from '@/constants/mock-data';
 import { getDayColorRule, getTodayDayOfWeek } from '@/constants/day-rules';
 import { Colors } from '@/constants/theme';
@@ -24,12 +23,15 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 export default function MatchMakerScreen() {
   const scheme = useColorScheme();
   const theme = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
 
   const today = getTodayDayOfWeek();
   const todayRule = getDayColorRule(today);
 
   const [filterTodayColor, setFilterTodayColor] = useState(false);
   const [zoomModalVisible, setZoomModalVisible] = useState(false);
+  const [hideHUD, setHideHUD] = useState(false);
 
   // Categorized items
   const allHair = INITIAL_WARDROBE_ITEMS.filter((i) => i.category === 'hair');
@@ -69,6 +71,14 @@ export default function MatchMakerScreen() {
   const currentBottom = bottomItems[selectedBottomIdx] || allBottoms[0];
   const currentShoe = shoeItems[selectedShoeIdx] || allShoes[0];
 
+  // Dynamic Height Distribution across the full viewport
+  // Deduct insets and the 60px bottom tab bar
+  const canvasHeight = windowHeight - insets.top - insets.bottom - 60;
+  const hairHeight = Math.round(canvasHeight * 0.18);
+  const topHeight = Math.round(canvasHeight * 0.32);
+  const bottomHeight = Math.round(canvasHeight * 0.36);
+  const shoeHeight = canvasHeight - hairHeight - topHeight - bottomHeight;
+
   // Random Shuffle / Spin Slot Machine
   const handleShuffle = () => {
     if (!lockedHair && hairItems.length > 1) {
@@ -102,131 +112,174 @@ export default function MatchMakerScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
-      {/* Top Header */}
-      <View style={[styles.header, { borderBottomColor: theme.border }]}>
-        <View>
-          <Text style={[styles.headerTitle, { color: theme.text }]}>MATCH MAKER</Text>
-          <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>
-            Personal Paper-Doll Wardrobe
-          </Text>
-        </View>
-
-        <View style={styles.headerActions}>
-          <Pressable
-            style={[styles.headerIconBtn, { backgroundColor: theme.backgroundElement }]}
-            onPress={() => setZoomModalVisible(true)}
-            accessibilityLabel="Full Outfit Zoom">
-            <Ionicons name="expand-outline" size={18} color={theme.text} />
-          </Pressable>
-          <Pressable
-            style={[styles.saveBtn, { backgroundColor: theme.primary }]}
-            onPress={handleSaveOutfit}>
-            <Ionicons name="bookmark-outline" size={16} color="#FFFFFF" />
-            <Text style={styles.saveBtnText}>Save</Text>
-          </Pressable>
-        </View>
-      </View>
-
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}>
-        {/* Day-of-Week Theme Rules Banner */}
-        <DayThemeBanner
-          rule={todayRule}
-          filterActive={filterTodayColor}
-          onToggleFilter={() => setFilterTodayColor((prev) => !prev)}
+    <View style={[styles.screen, { backgroundColor: theme.background }]}>
+      {/* Immersive Seamless Mannequin Canvas */}
+      <View style={[styles.canvas, { paddingTop: insets.top, height: canvasHeight + insets.top }]}>
+        {/* Tier 1: Hair & Grooming */}
+        <SlotMachineTier
+          category="hair"
+          title="Hair"
+          items={hairItems}
+          selectedIndex={selectedHairIdx}
+          onSelectIndex={setSelectedHairIdx}
+          isLocked={lockedHair}
+          onToggleLock={() => setLockedHair((prev) => !prev)}
+          height={hairHeight}
         />
 
-        {/* 4-Tier Slot Machine Carousel */}
-        <View style={styles.carouselStack}>
-          {/* Tier 1: Hair / Head */}
-          <SlotMachineTier
-            category="hair"
-            title="Hair & Grooming"
-            items={hairItems}
-            selectedIndex={selectedHairIdx}
-            onSelectIndex={setSelectedHairIdx}
-            isLocked={lockedHair}
-            onToggleLock={() => setLockedHair((prev) => !prev)}
-            height={110}
-          />
+        {/* Tier 2: Top / Shirt */}
+        <SlotMachineTier
+          category="top"
+          title="Top"
+          items={topItems}
+          selectedIndex={selectedTopIdx}
+          onSelectIndex={setSelectedTopIdx}
+          isLocked={lockedTop}
+          onToggleLock={() => setLockedTop((prev) => !prev)}
+          height={topHeight}
+        />
 
-          {/* Tier 2: Top */}
-          <SlotMachineTier
-            category="top"
-            title="Shirt / Top"
-            items={topItems}
-            selectedIndex={selectedTopIdx}
-            onSelectIndex={setSelectedTopIdx}
-            isLocked={lockedTop}
-            onToggleLock={() => setLockedTop((prev) => !prev)}
-            height={145}
-          />
+        {/* Tier 3: Bottom / Pants */}
+        <SlotMachineTier
+          category="bottom"
+          title="Bottom"
+          items={bottomItems}
+          selectedIndex={selectedBottomIdx}
+          onSelectIndex={setSelectedBottomIdx}
+          isLocked={lockedBottom}
+          onToggleLock={() => setLockedBottom((prev) => !prev)}
+          height={bottomHeight}
+        />
 
-          {/* Tier 3: Bottom */}
-          <SlotMachineTier
-            category="bottom"
-            title="Pants / Bottom"
-            items={bottomItems}
-            selectedIndex={selectedBottomIdx}
-            onSelectIndex={setSelectedBottomIdx}
-            isLocked={lockedBottom}
-            onToggleLock={() => setLockedBottom((prev) => !prev)}
-            height={145}
-          />
+        {/* Tier 4: Footwear */}
+        <SlotMachineTier
+          category="shoes"
+          title="Shoes"
+          items={shoeItems}
+          selectedIndex={selectedShoeIdx}
+          onSelectIndex={setSelectedShoeIdx}
+          isLocked={lockedShoe}
+          onToggleLock={() => setLockedShoe((prev) => !prev)}
+          height={shoeHeight}
+          showDivider={false}
+        />
+      </View>
 
-          {/* Tier 4: Footwear */}
-          <SlotMachineTier
-            category="shoes"
-            title="Footwear"
-            items={shoeItems}
-            selectedIndex={selectedShoeIdx}
-            onSelectIndex={setSelectedShoeIdx}
-            isLocked={lockedShoe}
-            onToggleLock={() => setLockedShoe((prev) => !prev)}
-            height={105}
-          />
-        </View>
+      {/* Floating HUD Overlays (Can be hidden to inspect raw outfit) */}
+      {!hideHUD && (
+        <>
+          {/* Top Floating Header Bar */}
+          <View style={[styles.floatingTopBar, { top: insets.top + 8 }]}>
+            {/* Today's Color Focus Pill */}
+            <Pressable
+              onPress={() => setFilterTodayColor((prev) => !prev)}
+              style={[
+                styles.dayFocusPill,
+                {
+                  backgroundColor: filterTodayColor ? theme.primary : 'rgba(15, 23, 42, 0.75)',
+                  borderColor: filterTodayColor ? theme.primary : 'rgba(255,255,255,0.15)',
+                },
+              ]}>
+              <View style={styles.paletteDots}>
+                {todayRule.hexColors.slice(0, 3).map((hex, idx) => (
+                  <View
+                    key={idx}
+                    style={[styles.smallDot, { backgroundColor: hex }]}
+                  />
+                ))}
+              </View>
+              <Text style={styles.dayFocusText}>
+                {today}: {todayRule.colorName}
+              </Text>
+              {filterTodayColor && (
+                <Ionicons name="checkmark-circle" size={13} color="#FFFFFF" />
+              )}
+            </Pressable>
 
-        {/* Quick Dock Controls */}
-        <View style={[styles.controlDock, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <Pressable
-            style={[styles.dockBtn, { backgroundColor: theme.backgroundElement }]}
-            onPress={handleToggleLockAll}>
-            <Ionicons
-              name={
-                lockedHair && lockedTop && lockedBottom && lockedShoe
-                  ? 'lock-closed'
-                  : 'lock-open-outline'
-              }
-              size={18}
-              color={theme.text}
-            />
-            <Text style={[styles.dockBtnText, { color: theme.text }]}>
-              {lockedHair && lockedTop && lockedBottom && lockedShoe ? 'Unlock All' : 'Lock All'}
-            </Text>
-          </Pressable>
+            {/* Quick Action Icons */}
+            <View style={styles.topRightActions}>
+              <Pressable
+                style={[
+                  styles.topIconBtn,
+                  {
+                    backgroundColor:
+                      lockedHair && lockedTop && lockedBottom && lockedShoe
+                        ? theme.gold
+                        : 'rgba(15, 23, 42, 0.75)',
+                  },
+                ]}
+                onPress={handleToggleLockAll}
+                accessibilityLabel="Lock or Unlock All">
+                <Ionicons
+                  name={
+                    lockedHair && lockedTop && lockedBottom && lockedShoe
+                      ? 'lock-closed'
+                      : 'lock-open-outline'
+                  }
+                  size={15}
+                  color={
+                    lockedHair && lockedTop && lockedBottom && lockedShoe
+                      ? '#000000'
+                      : '#FFFFFF'
+                  }
+                />
+              </Pressable>
 
-          <Pressable
-            style={[styles.shuffleBtn, { backgroundColor: theme.primary }]}
-            onPress={handleShuffle}>
-            <Ionicons name="dice-outline" size={20} color="#FFFFFF" />
-            <Text style={styles.shuffleBtnText}>Shuffle Match</Text>
-          </Pressable>
-        </View>
-      </ScrollView>
+              <Pressable
+                style={[styles.topIconBtn, { backgroundColor: 'rgba(15, 23, 42, 0.75)' }]}
+                onPress={() => setZoomModalVisible(true)}
+                accessibilityLabel="Full Screen Inspect">
+                <Ionicons name="expand-outline" size={15} color="#FFFFFF" />
+              </Pressable>
+            </View>
+          </View>
 
-      {/* Full Look Zoom Modal */}
+          {/* Floating Bottom Control Bar */}
+          <View style={[styles.floatingBottomDock, { bottom: 12 }]}>
+            <Pressable
+              style={[styles.hideBtn, { backgroundColor: 'rgba(15, 23, 42, 0.75)' }]}
+              onPress={() => setHideHUD(true)}
+              accessibilityLabel="Hide Controls">
+              <Ionicons name="eye-outline" size={18} color="#FFFFFF" />
+            </Pressable>
+
+            <Pressable
+              style={[styles.floatingShuffleBtn, { backgroundColor: theme.primary }]}
+              onPress={handleShuffle}>
+              <Ionicons name="dice-outline" size={18} color="#FFFFFF" />
+              <Text style={styles.shuffleText}>Shuffle Match</Text>
+            </Pressable>
+
+            <Pressable
+              style={[styles.saveBtn, { backgroundColor: 'rgba(15, 23, 42, 0.75)' }]}
+              onPress={handleSaveOutfit}
+              accessibilityLabel="Save Outfit">
+              <Ionicons name="bookmark-outline" size={18} color="#FFFFFF" />
+            </Pressable>
+          </View>
+        </>
+      )}
+
+      {/* Tap-to-Restore HUD Button when hidden */}
+      {hideHUD && (
+        <Pressable
+          style={[styles.restoreHUDBtn, { top: insets.top + 12 }]}
+          onPress={() => setHideHUD(false)}>
+          <Ionicons name="eye-off-outline" size={16} color="#FFFFFF" />
+          <Text style={styles.restoreHUDText}>Show Controls</Text>
+        </Pressable>
+      )}
+
+      {/* Full Look Modal */}
       <Modal
         visible={zoomModalVisible}
-        animationType="slide"
+        animationType="fade"
         transparent
         onRequestClose={() => setZoomModalVisible(false)}>
         <View style={styles.modalBackdrop}>
-          <View style={[styles.modalContent, { backgroundColor: theme.background }]}>
+          <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: theme.text }]}>Unified Full Look</Text>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>Unified Outfit Preview</Text>
               <Pressable
                 onPress={() => setZoomModalVisible(false)}
                 style={styles.closeBtn}>
@@ -234,201 +287,231 @@ export default function MatchMakerScreen() {
               </Pressable>
             </View>
 
-            {/* Seamless Stacked Silhouette Preview */}
-            <ScrollView
-              contentContainerStyle={styles.zoomStackContainer}
-              showsVerticalScrollIndicator={false}>
-              <View style={styles.zoomImageWrapper}>
+            <View style={styles.modalPreviewBody}>
+              <View style={styles.modalImageColumn}>
                 <Image
                   source={{ uri: currentHair.imageUrl }}
-                  style={[styles.zoomSlice, { height: 130 }]}
-                  contentFit="cover"
+                  style={[styles.modalSlice, { height: 110 }]}
+                  contentFit="contain"
                 />
                 <Image
                   source={{ uri: currentTop.imageUrl }}
-                  style={[styles.zoomSlice, { height: 180 }]}
-                  contentFit="cover"
+                  style={[styles.modalSlice, { height: 180 }]}
+                  contentFit="contain"
                 />
                 <Image
                   source={{ uri: currentBottom.imageUrl }}
-                  style={[styles.zoomSlice, { height: 180 }]}
-                  contentFit="cover"
+                  style={[styles.modalSlice, { height: 180 }]}
+                  contentFit="contain"
                 />
                 <Image
                   source={{ uri: currentShoe.imageUrl }}
-                  style={[styles.zoomSlice, { height: 120 }]}
-                  contentFit="cover"
+                  style={[styles.modalSlice, { height: 95 }]}
+                  contentFit="contain"
                 />
               </View>
 
-              <View style={[styles.summaryCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                <Text style={[styles.summaryTitle, { color: theme.text }]}>Outfit Breakdown</Text>
-                <Text style={[styles.summaryItem, { color: theme.textSecondary }]}>
-                  • Hair: {currentHair.name} ({currentHair.colorName})
+              <View style={[styles.modalSummary, { borderColor: theme.border }]}>
+                <Text style={[styles.modalSummaryHeading, { color: theme.text }]}>
+                  Pieces Summary
                 </Text>
-                <Text style={[styles.summaryItem, { color: theme.textSecondary }]}>
-                  • Top: {currentTop.name} ({currentTop.colorName})
+                <Text style={[styles.modalSummaryText, { color: theme.textSecondary }]}>
+                  • {currentHair.name}
                 </Text>
-                <Text style={[styles.summaryItem, { color: theme.textSecondary }]}>
-                  • Bottom: {currentBottom.name} ({currentBottom.colorName})
+                <Text style={[styles.modalSummaryText, { color: theme.textSecondary }]}>
+                  • {currentTop.name}
                 </Text>
-                <Text style={[styles.summaryItem, { color: theme.textSecondary }]}>
-                  • Shoes: {currentShoe.name} ({currentShoe.colorName})
+                <Text style={[styles.modalSummaryText, { color: theme.textSecondary }]}>
+                  • {currentBottom.name}
+                </Text>
+                <Text style={[styles.modalSummaryText, { color: theme.textSecondary }]}>
+                  • {currentShoe.name}
                 </Text>
               </View>
-            </ScrollView>
+            </View>
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
+  screen: {
     flex: 1,
+    position: 'relative',
   },
-  header: {
+  canvas: {
+    width: '100%',
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+  },
+  floatingTopBar: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    zIndex: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '900',
-    letterSpacing: 1.2,
-  },
-  headerSubtitle: {
-    fontSize: 11,
-    marginTop: 2,
-  },
-  headerActions: {
+  dayFocusPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-  },
-  headerIconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  saveBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 18,
-  },
-  saveBtnText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  scrollContent: {
-    paddingBottom: 40,
-  },
-  carouselStack: {
-    paddingHorizontal: 16,
-    alignItems: 'center',
-  },
-  controlDock: {
-    marginHorizontal: 16,
-    marginTop: 14,
-    padding: 10,
-    borderRadius: 18,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 10,
-    alignItems: 'center',
-  },
-  dockBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
     gap: 6,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 1,
+    maxWidth: SCREEN_WIDTH * 0.7,
   },
-  dockBtnText: {
-    fontSize: 12,
+  paletteDots: {
+    flexDirection: 'row',
+    gap: 3,
+  },
+  smallDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    borderWidth: 0.5,
+    borderColor: '#FFFFFF',
+  },
+  dayFocusText: {
+    color: '#FFFFFF',
+    fontSize: 11,
     fontWeight: '700',
+    letterSpacing: 0.2,
   },
-  shuffleBtn: {
+  topRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  topIconBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+  },
+  floatingBottomDock: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
+    zIndex: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    justifyContent: 'center',
+  },
+  hideBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+  },
+  floatingShuffleBtn: {
     flex: 1,
+    maxWidth: 200,
+    height: 44,
+    borderRadius: 22,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 12,
-    borderRadius: 14,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  shuffleBtnText: {
+  shuffleText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800',
     letterSpacing: 0.5,
   },
+  saveBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+  },
+  restoreHUDBtn: {
+    position: 'absolute',
+    right: 16,
+    zIndex: 30,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  restoreHUDText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
+  },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
   },
   modalContent: {
-    height: '90%',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingTop: 16,
+    width: '100%',
+    maxWidth: 380,
+    borderRadius: 20,
+    padding: 16,
+    maxHeight: '90%',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 14,
+    paddingBottom: 12,
   },
   modalTitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '800',
   },
   closeBtn: {
     padding: 4,
   },
-  zoomStackContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
+  modalPreviewBody: {
     alignItems: 'center',
   },
-  zoomImageWrapper: {
-    width: Math.min(SCREEN_WIDTH - 40, 360),
-    borderRadius: 16,
-    overflow: 'hidden',
-    backgroundColor: '#0F172A',
-  },
-  zoomSlice: {
+  modalImageColumn: {
     width: '100%',
+    alignItems: 'center',
   },
-  summaryCard: {
+  modalSlice: {
+    width: '90%',
+  },
+  modalSummary: {
     width: '100%',
-    maxWidth: 360,
-    marginTop: 16,
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
+    marginTop: 14,
+    paddingTop: 10,
+    borderTopWidth: 1,
   },
-  summaryTitle: {
-    fontSize: 14,
+  modalSummaryHeading: {
+    fontSize: 12,
     fontWeight: '700',
-    marginBottom: 8,
+    marginBottom: 4,
   },
-  summaryItem: {
-    fontSize: 13,
-    marginVertical: 2,
+  modalSummaryText: {
+    fontSize: 11,
+    marginVertical: 1,
   },
 });
