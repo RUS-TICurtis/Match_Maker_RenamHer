@@ -1,0 +1,27 @@
+# Wardrobe Makeover & Outfit Matcher App Spec
+
+## Overview
+A local-first mobile application (React Native / Expo) designed to organize personal wardrobe pieces and match outfits based on real photos of the user wearing each item.
+
+## Key Features
+1. **Split-Body "Paper-Doll" Carousel**:
+   - Multi-tier vertically stacked sliders (Hair/Grooming/Head -> Tops/Shirts -> Bottoms/Pants -> Footwear/Shoes).
+   - Horizontal swiping / dragging per segment to mix and match combinations.
+   - Lockable slots (e.g. lock pants while swiping through shirts).
+
+2. **Real-Life Photos**:
+   - Uses real photos (mirror selfies or full-length photos taken by others) of the user wearing specific items or sporting specific haircuts.
+   - Full-length and half-body support with pinch-to-zoom inspection.
+
+3. **Color Rules & Day-of-the-Week Themes**:
+   - Configurable daily color themes (e.g., Monday = White / Silver, etc.).
+   - Palette tagging and matching indicators per item.
+
+4. **Tagging & Categories**:
+   - Customizable labels, attire names, occasion tags (Casual, Formal, Gym, etc.), and fit notes.
+   - Accessory management (watches, glasses, hats, bags).
+
+5. **Local-First Architecture**:
+   - Offline-first storage using local SQLite and filesystem caching.
+   - Privacy-focused (photos stay on device).
+   - Cloud backup and web support to be considered in future iterations.
