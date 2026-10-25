@@ -74,6 +74,7 @@ export default function WardrobeScreen() {
     { label: 'Tops', value: 'top', icon: 'shirt-outline' },
     { label: 'Bottoms', value: 'bottom', icon: 'cut-outline' },
     { label: 'Shoes', value: 'shoes', icon: 'footsteps-outline' },
+    { label: 'Accessories', value: 'accessory', icon: 'watch-outline' },
   ];
 
   const handlePickImage = async () => {
@@ -676,7 +677,7 @@ export default function WardrobeScreen() {
             <View style={styles.inputGroup}>
               <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>CATEGORY</Text>
               <View style={styles.modalCategoryRow}>
-                {(['hair', 'top', 'bottom', 'shoes'] as WardrobeCategory[]).map((cat) => {
+                {(['hair', 'top', 'bottom', 'shoes', 'accessory'] as WardrobeCategory[]).map((cat) => {
                   const isSelected = pieceCategory === cat;
                   return (
                     <Pressable

@@ -195,4 +195,57 @@ export const INITIAL_WARDROBE_ITEMS: WardrobeItem[] = [
     isFavorite: true,
     createdAt: '2026-10-04',
   },
+
+  // --- ACCESSORIES ---
+  {
+    id: 'acc-1',
+    name: 'Minimal Chronograph Watch',
+    category: 'accessory',
+    primaryColor: '#D4AF37',
+    colorName: 'Gold / Black Leather',
+    imageUrl:
+      'https://images.unsplash.com/photo-1524805444758-089113d48a6d?w=600&auto=format&fit=crop&q=80',
+    tags: ['Watch', 'Classic', 'Leather', 'Gold'],
+    recommendedDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+    isFavorite: true,
+    createdAt: '2026-10-02',
+  },
+  {
+    id: 'acc-2',
+    name: 'Tortoise Acetate Sunglasses',
+    category: 'accessory',
+    primaryColor: '#78350F',
+    colorName: 'Amber Tortoise',
+    imageUrl:
+      'https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=600&auto=format&fit=crop&q=80',
+    tags: ['Eyewear', 'Summer', 'Casual', 'Chic'],
+    recommendedDays: ['Friday', 'Saturday', 'Sunday'],
+    isFavorite: true,
+    createdAt: '2026-10-05',
+  },
+  {
+    id: 'acc-3',
+    name: 'Italian Leather Crossbody Bag',
+    category: 'accessory',
+    primaryColor: '#1E293B',
+    colorName: 'Midnight Black',
+    imageUrl:
+      'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=600&auto=format&fit=crop&q=80',
+    tags: ['Bag', 'Leather', 'Utility', 'Sleek'],
+    recommendedDays: ['Monday', 'Wednesday', 'Saturday'],
+    createdAt: '2026-10-06',
+  },
+  {
+    id: 'acc-4',
+    name: 'Silver Herringbone Chain',
+    category: 'accessory',
+    primaryColor: '#CBD5E1',
+    colorName: 'Sterling Silver',
+    imageUrl:
+      'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=600&auto=format&fit=crop&q=80',
+    tags: ['Jewelry', 'Silver', 'Subtle', 'Modern'],
+    recommendedDays: ['Tuesday', 'Friday', 'Saturday'],
+    isFavorite: true,
+    createdAt: '2026-10-08',
+  },
 ];

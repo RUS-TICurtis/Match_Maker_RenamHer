@@ -607,7 +607,29 @@ export default function MatchMakerScreen() {
                 <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
               </Pressable>
 
-              {/* Option 5: In-App Settings */}
+              {/* Option 5: Style Planner */}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.sheetMenuItem,
+                  { backgroundColor: pressed ? theme.backgroundElement : 'transparent' },
+                ]}
+                onPress={() => {
+                  setMenuModalVisible(false);
+                  router.push('/planner' as any);
+                }}>
+                <View style={[styles.menuIconCircle, { backgroundColor: 'rgba(236, 72, 153, 0.15)' }]}>
+                  <Ionicons name="calendar-outline" size={20} color="#EC4899" />
+                </View>
+                <View style={styles.menuTextCol}>
+                  <Text style={[styles.menuItemTitle, { color: theme.text }]}>Style Planner & Events</Text>
+                  <Text style={[styles.menuItemDesc, { color: theme.textSecondary }]}>
+                    Schedule week outfits, events, and pick accessories
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
+              </Pressable>
+
+              {/* Option 6: In-App Settings */}
               <Pressable
                 style={({ pressed }) => [
                   styles.sheetMenuItem,

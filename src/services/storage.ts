@@ -1,11 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { WardrobeItem, SavedOutfit } from '@/types/wardrobe';
+import { WardrobeItem, SavedOutfit, PlannedOutfit } from '@/types/wardrobe';
 import { INITIAL_WARDROBE_ITEMS } from '@/constants/mock-data';
 
 // ─── Storage Keys ───────────────────────────────────────
 const KEYS = {
   WARDROBE_ITEMS: '@matchmaker_wardrobe_items',
   SAVED_OUTFITS: '@matchmaker_saved_outfits',
+  PLANNED_OUTFITS: '@matchmaker_planned_outfits',
   APP_SETTINGS: '@matchmaker_app_settings',
   HAS_INITIALIZED: '@matchmaker_has_initialized',
 } as const;
@@ -158,6 +159,53 @@ export async function removeSavedOutfit(id: string): Promise<SavedOutfit[]> {
   return updated;
 }
 
+// ─── Planned Outfits & Calendar Events ──────────────────
+
+export async function loadPlannedOutfits(): Promise<PlannedOutfit[]> {
+  try {
+    const raw = await AsyncStorage.getItem(KEYS.PLANNED_OUTFITS);
+    if (raw) {
+      return JSON.parse(raw) as PlannedOutfit[];
+    }
+    return [];
+  } catch (error) {
+    console.warn('[Storage] Failed to load planned outfits:', error);
+    return [];
+  }
+}
+
+export async function savePlannedOutfits(plans: PlannedOutfit[]): Promise<void> {
+  try {
+    await AsyncStorage.setItem(KEYS.PLANNED_OUTFITS, JSON.stringify(plans));
+  } catch (error) {
+    console.warn('[Storage] Failed to save planned outfits:', error);
+  }
+}
+
+export async function addPlannedOutfit(plan: PlannedOutfit): Promise<PlannedOutfit[]> {
+  const plans = await loadPlannedOutfits();
+  const updated = [plan, ...plans];
+  await savePlannedOutfits(updated);
+  return updated;
+}
+
+export async function updatePlannedOutfit(
+  id: string,
+  updates: Partial<PlannedOutfit>
+): Promise<PlannedOutfit[]> {
+  const plans = await loadPlannedOutfits();
+  const updated = plans.map((p) => (p.id === id ? { ...p, ...updates } : p));
+  await savePlannedOutfits(updated);
+  return updated;
+}
+
+export async function removePlannedOutfit(id: string): Promise<PlannedOutfit[]> {
+  const plans = await loadPlannedOutfits();
+  const updated = plans.filter((p) => p.id !== id);
+  await savePlannedOutfits(updated);
+  return updated;
+}
+
 // ─── App Settings ───────────────────────────────────────
 
 export async function loadSettings(): Promise<AppSettings> {
@@ -189,6 +237,7 @@ export async function clearAllData(): Promise<void> {
     await AsyncStorage.multiRemove([
       KEYS.WARDROBE_ITEMS,
       KEYS.SAVED_OUTFITS,
+      KEYS.PLANNED_OUTFITS,
       KEYS.APP_SETTINGS,
       KEYS.HAS_INITIALIZED,
     ]);

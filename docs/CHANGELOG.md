@@ -46,3 +46,30 @@
   - iOS ActionSheet / Android custom modal on long-press to view full screen, favorite, or delete.
 - Wired [src/app/index.tsx](file:///c:/Users/Curtis/Documents/_Github/Match_Maker_RenamHer/src/app/index.tsx) and [src/app/outfits.tsx](file:///c:/Users/Curtis/Documents/_Github/Match_Maker_RenamHer/src/app/outfits.tsx) to persist and sync outfits and wardrobe pieces directly via local storage.
 
+## 2026-10-25 - Style Planner, Calendar, DateTime Pickers, Events & Accessories
+
+### Added
+- Added `accessory` category to wardrobe system with curated starter items (chronograph watches, sunglasses, leather bags, chains) in [mock-data.ts](file:///c:/Users/Curtis/Documents/_Github/Match_Maker_RenamHer/src/constants/mock-data.ts).
+- Integrated `accessory` category filter pill and creation option in [wardrobe.tsx](file:///c:/Users/Curtis/Documents/_Github/Match_Maker_RenamHer/src/app/wardrobe.tsx).
+- Created `PlannedOutfit` schema in [wardrobe.ts](file:///c:/Users/Curtis/Documents/_Github/Match_Maker_RenamHer/src/types/wardrobe.ts) and AsyncStorage CRUD functions (`loadPlannedOutfits`, `savePlannedOutfits`, `addPlannedOutfit`, `updatePlannedOutfit`, `removePlannedOutfit`) in [storage.ts](file:///c:/Users/Curtis/Documents/_Github/Match_Maker_RenamHer/src/services/storage.ts).
+- Built full-featured **Style Planner Screen** ([planner.tsx](file:///c:/Users/Curtis/Documents/_Github/Match_Maker_RenamHer/src/app/planner.tsx)) and registered in navigation tabs ([_layout.tsx](file:///c:/Users/Curtis/Documents/_Github/Match_Maker_RenamHer/src/app/_layout.tsx)):
+  - **Weekly 7-Day View**: Smooth week-by-week pagination with today's indicator, event dots, and date selector.
+  - **Monthly Calendar Grid**: Full month matrix with previous/next month navigation and event dots.
+  - **Daily Focus & Day Color Rule**: Automatically displays the selected day's color recommendation and psychological meaning.
+  - **Event & DateTime Picker Modal**:
+    - Occasion/Event title input (e.g. Work presentation, Dinner date, Casual brunch).
+    - Event time picker with quick presets (07:00 AM, 08:30 AM, 12:30 PM, 07:00 PM, etc.).
+    - Location and notes fields.
+    - Two outfit selection modes: pick from existing saved Lookbook outfits or compose directly from closet pieces with an interactive **Accessories selector**.
+  - **Scheduled Occasions List**: Displays scheduled events with time/location chips, outfit slices, accessories gallery, completion checkboxes, and delete controls.
+- Added Style Planner shortcut directly inside the Match Maker hamburger menu in [index.tsx](file:///c:/Users/Curtis/Documents/_Github/Match_Maker_RenamHer/src/app/index.tsx).
+
+## 2026-10-25 - Architectural Roadmap & TODO Documentation
+
+### Documented
+- Created [docs/TODO.md](file:///c:/Users/Curtis/Documents/_Github/Match_Maker_RenamHer/docs/TODO.md) detailing the upcoming feature: **Puzzle-Style Match Screen Expansion (6-Slot Carousel with Accessories)**.
+  - Documented transition from 4 tiers (Hair, Tops, Bottoms, Shoes) to 6 slots (adding 2 accessory slots: Eyewear/Jewelry and Bags/Belts/Watches).
+  - Documented puzzle-style interaction model: arrow keys, snap scroll reels, interlocking visual alignment, and tactile lock mechanics.
+
+
+
