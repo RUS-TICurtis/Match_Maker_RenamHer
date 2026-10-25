@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,10 +13,20 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import * as Haptics from 'expo-haptics';
+import { router } from 'expo-router';
 import { SlotMachineTier } from '@/components/SlotMachineTier';
 import { INITIAL_WARDROBE_ITEMS } from '@/constants/mock-data';
 import { getDayColorRule, getTodayDayOfWeek } from '@/constants/day-rules';
 import { Colors } from '@/constants/theme';
+import {
+  loadWardrobeItems,
+  loadSettings,
+  addSavedOutfit,
+  AppSettings,
+  DEFAULT_SETTINGS,
+} from '@/services/storage';
+import { WardrobeItem, SavedOutfit } from '@/types/wardrobe';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -29,28 +39,39 @@ export default function MatchMakerScreen() {
   const today = getTodayDayOfWeek();
   const todayRule = getDayColorRule(today);
 
+  const [wardrobe, setWardrobe] = useState<WardrobeItem[]>(INITIAL_WARDROBE_ITEMS);
+  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [filterTodayColor, setFilterTodayColor] = useState(false);
   const [zoomModalVisible, setZoomModalVisible] = useState(false);
+  const [menuModalVisible, setMenuModalVisible] = useState(false);
   const [hideHUD, setHideHUD] = useState(false);
 
-  // Categorized items
-  const allHair = INITIAL_WARDROBE_ITEMS.filter((i) => i.category === 'hair');
-  const allTops = INITIAL_WARDROBE_ITEMS.filter((i) => i.category === 'top');
-  const allBottoms = INITIAL_WARDROBE_ITEMS.filter((i) => i.category === 'bottom');
-  const allShoes = INITIAL_WARDROBE_ITEMS.filter((i) => i.category === 'shoes');
+  // Categorized items from loaded wardrobe
+  const allHair = wardrobe.filter((i) => i.category === 'hair');
+  const allTops = wardrobe.filter((i) => i.category === 'top');
+  const allBottoms = wardrobe.filter((i) => i.category === 'bottom');
+  const allShoes = wardrobe.filter((i) => i.category === 'shoes');
 
   // Filtered lists if day filter is active
   const hairItems = filterTodayColor
-    ? allHair.filter((i) => i.recommendedDays?.includes(today)) || allHair
+    ? allHair.filter((i) => i.recommendedDays?.includes(today)).length > 0
+      ? allHair.filter((i) => i.recommendedDays?.includes(today))
+      : allHair
     : allHair;
   const topItems = filterTodayColor
-    ? allTops.filter((i) => i.recommendedDays?.includes(today)) || allTops
+    ? allTops.filter((i) => i.recommendedDays?.includes(today)).length > 0
+      ? allTops.filter((i) => i.recommendedDays?.includes(today))
+      : allTops
     : allTops;
   const bottomItems = filterTodayColor
-    ? allBottoms.filter((i) => i.recommendedDays?.includes(today)) || allBottoms
+    ? allBottoms.filter((i) => i.recommendedDays?.includes(today)).length > 0
+      ? allBottoms.filter((i) => i.recommendedDays?.includes(today))
+      : allBottoms
     : allBottoms;
   const shoeItems = filterTodayColor
-    ? allShoes.filter((i) => i.recommendedDays?.includes(today)) || allShoes
+    ? allShoes.filter((i) => i.recommendedDays?.includes(today)).length > 0
+      ? allShoes.filter((i) => i.recommendedDays?.includes(today))
+      : allShoes
     : allShoes;
 
   // Selected Indices
@@ -65,6 +86,26 @@ export default function MatchMakerScreen() {
   const [lockedBottom, setLockedBottom] = useState(false);
   const [lockedShoe, setLockedShoe] = useState(false);
 
+  // Load Wardrobe & Settings from local storage
+  useEffect(() => {
+    Promise.all([loadWardrobeItems(), loadSettings()]).then(([items, s]) => {
+      setWardrobe(items);
+      setSettings(s);
+
+      // Auto-shuffle on open if enabled in settings
+      if (s.autoShuffleOnOpen) {
+        const hair = items.filter((i) => i.category === 'hair');
+        const tops = items.filter((i) => i.category === 'top');
+        const bottoms = items.filter((i) => i.category === 'bottom');
+        const shoes = items.filter((i) => i.category === 'shoes');
+        if (hair.length > 1) setSelectedHairIdx(Math.floor(Math.random() * hair.length));
+        if (tops.length > 1) setSelectedTopIdx(Math.floor(Math.random() * tops.length));
+        if (bottoms.length > 1) setSelectedBottomIdx(Math.floor(Math.random() * bottoms.length));
+        if (shoes.length > 1) setSelectedShoeIdx(Math.floor(Math.random() * shoes.length));
+      }
+    });
+  }, []);
+
   // Selected Item References
   const currentHair = hairItems[selectedHairIdx] || allHair[0];
   const currentTop = topItems[selectedTopIdx] || allTops[0];
@@ -72,8 +113,10 @@ export default function MatchMakerScreen() {
   const currentShoe = shoeItems[selectedShoeIdx] || allShoes[0];
 
   // Dynamic Height Distribution across the full viewport
-  // Deduct insets and the 60px bottom tab bar
-  const canvasHeight = windowHeight - insets.top - insets.bottom - 60;
+  // Deduct insets and the dynamic bottom tab bar height (56 + bottom inset)
+  const bottomInset = insets.bottom > 0 ? insets.bottom : 12;
+  const tabHeight = 56 + bottomInset;
+  const canvasHeight = windowHeight - insets.top - tabHeight;
   const hairHeight = Math.round(canvasHeight * 0.18);
   const topHeight = Math.round(canvasHeight * 0.32);
   const bottomHeight = Math.round(canvasHeight * 0.36);
@@ -81,6 +124,9 @@ export default function MatchMakerScreen() {
 
   // Random Shuffle / Spin Slot Machine
   const handleShuffle = () => {
+    if (settings.hapticsEnabled) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    }
     if (!lockedHair && hairItems.length > 1) {
       setSelectedHairIdx(Math.floor(Math.random() * hairItems.length));
     }
@@ -97,16 +143,56 @@ export default function MatchMakerScreen() {
 
   const handleToggleLockAll = () => {
     const allLocked = lockedHair && lockedTop && lockedBottom && lockedShoe;
+    if (settings.hapticsEnabled) {
+      Haptics.notificationAsync(
+        allLocked
+          ? Haptics.NotificationFeedbackType.Warning
+          : Haptics.NotificationFeedbackType.Success
+      ).catch(() => {});
+    }
     setLockedHair(!allLocked);
     setLockedTop(!allLocked);
     setLockedBottom(!allLocked);
     setLockedShoe(!allLocked);
   };
 
-  const handleSaveOutfit = () => {
+  const handleResetOutfit = () => {
+    if (settings.hapticsEnabled) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
+    setSelectedHairIdx(0);
+    setSelectedTopIdx(0);
+    setSelectedBottomIdx(0);
+    setSelectedShoeIdx(0);
+    setLockedHair(false);
+    setLockedTop(false);
+    setLockedBottom(false);
+    setLockedShoe(false);
+    setMenuModalVisible(false);
+  };
+
+  const handleSaveOutfit = async () => {
+    if (settings.hapticsEnabled) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    }
+
+    const newOutfit: SavedOutfit = {
+      id: `outfit-${Date.now()}`,
+      name: `${currentTop?.name || 'Look'} & ${currentBottom?.name || 'Pants'}`,
+      hairId: currentHair?.id,
+      topId: currentTop?.id || '',
+      bottomId: currentBottom?.id || '',
+      shoesId: currentShoe?.id || '',
+      dayTag: today,
+      createdAt: new Date().toISOString(),
+      isFavorite: false,
+    };
+
+    await addSavedOutfit(newOutfit);
+
     Alert.alert(
       'Outfit Saved!',
-      `Saved: ${currentTop.name} with ${currentBottom.name} and ${currentShoe.name}.`,
+      `Saved: ${currentTop?.name || 'Top'} with ${currentBottom?.name || 'Bottom'} and ${currentShoe?.name || 'Shoes'}. You can find it in your Lookbook!`,
       [{ text: 'Great' }]
     );
   };
@@ -171,41 +257,52 @@ export default function MatchMakerScreen() {
           {/* Top Floating Header Bar */}
           <View style={[styles.floatingTopBar, { top: insets.top + 8 }]}>
             {/* Today's Color Focus Pill */}
-            <Pressable
-              onPress={() => setFilterTodayColor((prev) => !prev)}
-              style={[
-                styles.dayFocusPill,
-                {
-                  backgroundColor: filterTodayColor ? theme.primary : 'rgba(15, 23, 42, 0.75)',
-                  borderColor: filterTodayColor ? theme.primary : 'rgba(255,255,255,0.15)',
-                },
-              ]}>
-              <View style={styles.paletteDots}>
-                {todayRule.hexColors.slice(0, 3).map((hex, idx) => (
-                  <View
-                    key={idx}
-                    style={[styles.smallDot, { backgroundColor: hex }]}
-                  />
-                ))}
-              </View>
-              <Text style={styles.dayFocusText}>
-                {today}: {todayRule.colorName}
-              </Text>
-              {filterTodayColor && (
-                <Ionicons name="checkmark-circle" size={13} color="#FFFFFF" />
-              )}
-            </Pressable>
+            {settings.showDayColorBanner ? (
+              <Pressable
+                onPress={() => {
+                  if (settings.hapticsEnabled) {
+                    Haptics.selectionAsync().catch(() => {});
+                  }
+                  setFilterTodayColor((prev) => !prev);
+                }}
+                style={({ pressed }) => [
+                  styles.dayFocusPill,
+                  {
+                    backgroundColor: filterTodayColor ? theme.primary : 'rgba(15, 23, 42, 0.75)',
+                    borderColor: filterTodayColor ? theme.primary : 'rgba(255,255,255,0.15)',
+                    transform: [{ scale: pressed ? 0.95 : 1.0 }],
+                  },
+                ]}>
+                <View style={styles.paletteDots}>
+                  {todayRule.hexColors.slice(0, 3).map((hex, idx) => (
+                    <View
+                      key={idx}
+                      style={[styles.smallDot, { backgroundColor: hex }]}
+                    />
+                  ))}
+                </View>
+                <Text style={styles.dayFocusText}>
+                  {today}: {todayRule.colorName}
+                </Text>
+                {filterTodayColor && (
+                  <Ionicons name="checkmark-circle" size={13} color="#FFFFFF" />
+                )}
+              </Pressable>
+            ) : (
+              <View />
+            )}
 
-            {/* Quick Action Icons */}
+            {/* Quick Action Icons & Hamburger */}
             <View style={styles.topRightActions}>
               <Pressable
-                style={[
+                style={({ pressed }) => [
                   styles.topIconBtn,
                   {
                     backgroundColor:
                       lockedHair && lockedTop && lockedBottom && lockedShoe
                         ? theme.gold
                         : 'rgba(15, 23, 42, 0.75)',
+                    transform: [{ scale: pressed ? 0.9 : 1.0 }],
                   },
                 ]}
                 onPress={handleToggleLockAll}
@@ -226,10 +323,36 @@ export default function MatchMakerScreen() {
               </Pressable>
 
               <Pressable
-                style={[styles.topIconBtn, { backgroundColor: 'rgba(15, 23, 42, 0.75)' }]}
-                onPress={() => setZoomModalVisible(true)}
+                style={({ pressed }) => [
+                  styles.topIconBtn,
+                  {
+                    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+                    transform: [{ scale: pressed ? 0.9 : 1.0 }],
+                  },
+                ]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                  setZoomModalVisible(true);
+                }}
                 accessibilityLabel="Full Screen Inspect">
                 <Ionicons name="expand-outline" size={15} color="#FFFFFF" />
+              </Pressable>
+
+              {/* Hamburger Context Menu Button */}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.topIconBtn,
+                  {
+                    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+                    transform: [{ scale: pressed ? 0.9 : 1.0 }],
+                  },
+                ]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                  setMenuModalVisible(true);
+                }}
+                accessibilityLabel="Open Menu">
+                <Ionicons name="menu" size={16} color="#FFFFFF" />
               </Pressable>
             </View>
           </View>
@@ -237,21 +360,42 @@ export default function MatchMakerScreen() {
           {/* Floating Bottom Control Bar */}
           <View style={[styles.floatingBottomDock, { bottom: 12 }]}>
             <Pressable
-              style={[styles.hideBtn, { backgroundColor: 'rgba(15, 23, 42, 0.75)' }]}
-              onPress={() => setHideHUD(true)}
+              style={({ pressed }) => [
+                styles.hideBtn,
+                {
+                  backgroundColor: 'rgba(15, 23, 42, 0.75)',
+                  transform: [{ scale: pressed ? 0.92 : 1.0 }],
+                },
+              ]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                setHideHUD(true);
+              }}
               accessibilityLabel="Hide Controls">
               <Ionicons name="eye-outline" size={18} color="#FFFFFF" />
             </Pressable>
 
             <Pressable
-              style={[styles.floatingShuffleBtn, { backgroundColor: theme.primary }]}
+              style={({ pressed }) => [
+                styles.floatingShuffleBtn,
+                {
+                  backgroundColor: theme.primary,
+                  transform: [{ scale: pressed ? 0.95 : 1.0 }],
+                },
+              ]}
               onPress={handleShuffle}>
               <Ionicons name="dice-outline" size={18} color="#FFFFFF" />
               <Text style={styles.shuffleText}>Shuffle Match</Text>
             </Pressable>
 
             <Pressable
-              style={[styles.saveBtn, { backgroundColor: 'rgba(15, 23, 42, 0.75)' }]}
+              style={({ pressed }) => [
+                styles.saveBtn,
+                {
+                  backgroundColor: 'rgba(15, 23, 42, 0.75)',
+                  transform: [{ scale: pressed ? 0.92 : 1.0 }],
+                },
+              ]}
               onPress={handleSaveOutfit}
               accessibilityLabel="Save Outfit">
               <Ionicons name="bookmark-outline" size={18} color="#FFFFFF" />
@@ -331,6 +475,162 @@ export default function MatchMakerScreen() {
             </View>
           </View>
         </View>
+      </Modal>
+
+      {/* Hamburger / Quick Actions Drawer Modal */}
+      <Modal
+        visible={menuModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setMenuModalVisible(false)}>
+        <Pressable
+          style={styles.sheetBackdrop}
+          onPress={() => setMenuModalVisible(false)}>
+          <Pressable
+            style={[styles.sheetContainer, { backgroundColor: theme.card, borderColor: theme.border }]}
+            onPress={(e) => e.stopPropagation()}>
+            {/* Sheet Handle */}
+            <View style={styles.sheetHandle} />
+
+            <View style={styles.sheetHeader}>
+              <View>
+                <Text style={[styles.sheetTitle, { color: theme.text }]}>Match Maker Controls</Text>
+                <Text style={[styles.sheetSubtitle, { color: theme.textSecondary }]}>
+                  Styling shortcuts & slot presets
+                </Text>
+              </View>
+              <Pressable
+                onPress={() => setMenuModalVisible(false)}
+                hitSlop={8}>
+                <Ionicons name="close-circle" size={24} color={theme.textSecondary} />
+              </Pressable>
+            </View>
+
+            <View style={styles.sheetMenuList}>
+              {/* Option 1: Lock / Unlock All */}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.sheetMenuItem,
+                  { backgroundColor: pressed ? theme.backgroundElement : 'transparent' },
+                ]}
+                onPress={() => {
+                  handleToggleLockAll();
+                  setMenuModalVisible(false);
+                }}>
+                <View style={[styles.menuIconCircle, { backgroundColor: 'rgba(32, 138, 239, 0.15)' }]}>
+                  <Ionicons
+                    name={
+                      lockedHair && lockedTop && lockedBottom && lockedShoe
+                        ? 'lock-open-outline'
+                        : 'lock-closed-outline'
+                    }
+                    size={20}
+                    color={theme.primary}
+                  />
+                </View>
+                <View style={styles.menuTextCol}>
+                  <Text style={[styles.menuItemTitle, { color: theme.text }]}>
+                    {lockedHair && lockedTop && lockedBottom && lockedShoe
+                      ? 'Unlock All Tiers'
+                      : 'Lock Current Outfit Tiers'}
+                  </Text>
+                  <Text style={[styles.menuItemDesc, { color: theme.textSecondary }]}>
+                    Freeze or free all hair, top, bottom, and shoe reels
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
+              </Pressable>
+
+              {/* Option 2: Today's Color Alignment */}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.sheetMenuItem,
+                  { backgroundColor: pressed ? theme.backgroundElement : 'transparent' },
+                ]}
+                onPress={() => {
+                  Haptics.selectionAsync().catch(() => {});
+                  setFilterTodayColor((prev) => !prev);
+                  setMenuModalVisible(false);
+                }}>
+                <View style={[styles.menuIconCircle, { backgroundColor: 'rgba(234, 88, 12, 0.15)' }]}>
+                  <Ionicons name="color-palette-outline" size={20} color="#EA580C" />
+                </View>
+                <View style={styles.menuTextCol}>
+                  <Text style={[styles.menuItemTitle, { color: theme.text }]}>
+                    {filterTodayColor ? 'Show All Colors' : `Filter by ${today}'s Rule`}
+                  </Text>
+                  <Text style={[styles.menuItemDesc, { color: theme.textSecondary }]}>
+                    Align slots with {todayRule.colorName} ({todayRule.meaning})
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
+              </Pressable>
+
+              {/* Option 3: Reset Reels */}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.sheetMenuItem,
+                  { backgroundColor: pressed ? theme.backgroundElement : 'transparent' },
+                ]}
+                onPress={handleResetOutfit}>
+                <View style={[styles.menuIconCircle, { backgroundColor: 'rgba(100, 116, 139, 0.15)' }]}>
+                  <Ionicons name="refresh-outline" size={20} color={theme.textSecondary} />
+                </View>
+                <View style={styles.menuTextCol}>
+                  <Text style={[styles.menuItemTitle, { color: theme.text }]}>Reset to First Pieces</Text>
+                  <Text style={[styles.menuItemDesc, { color: theme.textSecondary }]}>
+                    Unlock all tiers and return to starting defaults
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
+              </Pressable>
+
+              {/* Option 4: Full Screen Inspect */}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.sheetMenuItem,
+                  { backgroundColor: pressed ? theme.backgroundElement : 'transparent' },
+                ]}
+                onPress={() => {
+                  setMenuModalVisible(false);
+                  setTimeout(() => setZoomModalVisible(true), 150);
+                }}>
+                <View style={[styles.menuIconCircle, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
+                  <Ionicons name="expand-outline" size={20} color="#10B981" />
+                </View>
+                <View style={styles.menuTextCol}>
+                  <Text style={[styles.menuItemTitle, { color: theme.text }]}>Inspect Full Look</Text>
+                  <Text style={[styles.menuItemDesc, { color: theme.textSecondary }]}>
+                    View unified mannequin look & clothing breakdown
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
+              </Pressable>
+
+              {/* Option 5: In-App Settings */}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.sheetMenuItem,
+                  { backgroundColor: pressed ? theme.backgroundElement : 'transparent' },
+                ]}
+                onPress={() => {
+                  setMenuModalVisible(false);
+                  router.push('/settings' as any);
+                }}>
+                <View style={[styles.menuIconCircle, { backgroundColor: 'rgba(99, 102, 241, 0.15)' }]}>
+                  <Ionicons name="settings-outline" size={20} color={theme.primary} />
+                </View>
+                <View style={styles.menuTextCol}>
+                  <Text style={[styles.menuItemTitle, { color: theme.text }]}>App Settings</Text>
+                  <Text style={[styles.menuItemDesc, { color: theme.textSecondary }]}>
+                    Fine-tune slot machine, wardrobe columns & controls
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
       </Modal>
     </View>
   );
@@ -513,5 +813,73 @@ const styles = StyleSheet.create({
   modalSummaryText: {
     fontSize: 11,
     marginVertical: 1,
+  },
+  sheetBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    justifyContent: 'flex-end',
+  },
+  sheetContainer: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderTopWidth: 1,
+    paddingTop: 8,
+    paddingBottom: 32,
+    paddingHorizontal: 20,
+  },
+  sheetHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(148, 163, 184, 0.4)',
+    alignSelf: 'center',
+    marginBottom: 12,
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(148, 163, 184, 0.15)',
+  },
+  sheetTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  sheetSubtitle: {
+    fontSize: 11,
+    marginTop: 2,
+  },
+  sheetMenuList: {
+    paddingTop: 8,
+    gap: 4,
+  },
+  sheetMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 14,
+    gap: 12,
+  },
+  menuIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  menuTextCol: {
+    flex: 1,
+  },
+  menuItemTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  menuItemDesc: {
+    fontSize: 11,
+    marginTop: 2,
   },
 });

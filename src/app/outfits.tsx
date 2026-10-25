@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,66 +11,89 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { INITIAL_WARDROBE_ITEMS } from '@/constants/mock-data';
+import * as Haptics from 'expo-haptics';
 import { SavedOutfit, WardrobeItem } from '@/types/wardrobe';
 import { Colors } from '@/constants/theme';
 import { router } from 'expo-router';
-
-const INITIAL_SAVED_OUTFITS: SavedOutfit[] = [
-  {
-    id: 'outfit-1',
-    name: 'Monday Fresh Clean Fit',
-    hairId: 'hair-1',
-    topId: 'top-1',
-    bottomId: 'bottom-1',
-    shoesId: 'shoes-1',
-    dayTag: 'Monday',
-    createdAt: '2026-10-12',
-    lastWornDate: '2026-10-12',
-    isFavorite: true,
-  },
-  {
-    id: 'outfit-2',
-    name: 'Wednesday Olive & Sage',
-    hairId: 'hair-2',
-    topId: 'top-3',
-    bottomId: 'bottom-4',
-    shoesId: 'shoes-1',
-    dayTag: 'Wednesday',
-    createdAt: '2026-10-14',
-    lastWornDate: '2026-10-14',
-    isFavorite: true,
-  },
-  {
-    id: 'outfit-3',
-    name: 'Friday Casual Linen',
-    hairId: 'hair-1',
-    topId: 'top-4',
-    bottomId: 'bottom-2',
-    shoesId: 'shoes-1',
-    dayTag: 'Friday',
-    createdAt: '2026-10-16',
-    isFavorite: false,
-  },
-];
+import {
+  loadSavedOutfits,
+  saveSavedOutfits,
+  loadWardrobeItems,
+  loadSettings,
+  AppSettings,
+  DEFAULT_SETTINGS,
+} from '@/services/storage';
 
 export default function OutfitsScreen() {
   const scheme = useColorScheme();
   const theme = Colors[scheme === 'dark' ? 'dark' : 'light'];
 
-  const [outfits, setOutfits] = useState<SavedOutfit[]>(INITIAL_SAVED_OUTFITS);
+  const [outfits, setOutfits] = useState<SavedOutfit[]>([]);
+  const [wardrobe, setWardrobe] = useState<WardrobeItem[]>([]);
+  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([loadSavedOutfits(), loadWardrobeItems(), loadSettings()]).then(
+      ([loadedOutfits, loadedWardrobe, s]) => {
+        setOutfits(loadedOutfits);
+        setWardrobe(loadedWardrobe);
+        setSettings(s);
+        setIsLoading(false);
+      }
+    );
+  }, []);
 
   const getItem = (id?: string): WardrobeItem | undefined => {
-    return INITIAL_WARDROBE_ITEMS.find((i) => i.id === id);
+    return wardrobe.find((i) => i.id === id);
   };
 
   const toggleFavorite = (id: string) => {
-    setOutfits((prev) =>
-      prev.map((o) => (o.id === id ? { ...o, isFavorite: !o.isFavorite } : o))
+    if (settings.hapticsEnabled) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
+    const updated = outfits.map((o) =>
+      o.id === id ? { ...o, isFavorite: !o.isFavorite } : o
     );
+    setOutfits(updated);
+    saveSavedOutfits(updated);
+  };
+
+  const handleDeleteOutfit = (outfit: SavedOutfit) => {
+    const performDelete = () => {
+      const updated = outfits.filter((o) => o.id !== outfit.id);
+      setOutfits(updated);
+      saveSavedOutfits(updated);
+      if (settings.hapticsEnabled) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      }
+    };
+
+    if (settings.confirmBeforeDelete) {
+      Alert.alert(
+        'Delete Outfit',
+        `Are you sure you want to delete "${outfit.name}" from your Lookbook?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Delete', style: 'destructive', onPress: performDelete },
+        ]
+      );
+    } else {
+      performDelete();
+    }
   };
 
   const handleWearToday = (outfit: SavedOutfit) => {
+    if (settings.hapticsEnabled) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    }
+    const today = new Date().toISOString().split('T')[0];
+    const updated = outfits.map((o) =>
+      o.id === outfit.id ? { ...o, lastWornDate: today } : o
+    );
+    setOutfits(updated);
+    saveSavedOutfits(updated);
+
     Alert.alert(
       'Logged as Worn!',
       `Logged "${outfit.name}" for today! Keep rocking your style.`,
@@ -85,23 +108,52 @@ export default function OutfitsScreen() {
         <View>
           <Text style={[styles.headerTitle, { color: theme.text }]}>LOOKBOOK</Text>
           <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>
-            {outfits.length} saved outfits
+            {isLoading ? 'Loading...' : `${outfits.length} saved outfits`}
           </Text>
         </View>
 
         <Pressable
-          style={[styles.newBtn, { backgroundColor: theme.primary }]}
-          onPress={() => router.push('/')}>
+          style={({ pressed }) => [
+            styles.newBtn,
+            {
+              backgroundColor: theme.primary,
+              transform: [{ scale: pressed ? 0.94 : 1.0 }],
+            },
+          ]}
+          onPress={() => {
+            if (settings.hapticsEnabled) {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+            }
+            router.push('/');
+          }}>
           <Ionicons name="sparkles" size={16} color="#FFFFFF" />
-          <Text style={styles.newBtnText}>New Match</Text>
+          <Text style={styles.newBtnText}>Match Maker</Text>
         </Pressable>
       </View>
 
+      {/* Outfit Cards List */}
       <FlatList
         data={outfits}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <View style={[styles.emptyIconCircle, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              <Ionicons name="bookmark-outline" size={32} color={theme.textSecondary} />
+            </View>
+            <Text style={[styles.emptyTitle, { color: theme.text }]}>No Saved Outfits Yet</Text>
+            <Text style={[styles.emptyDesc, { color: theme.textSecondary }]}>
+              Spin the Match Maker reels and tap "Save Outfit" to build your curated personal lookbook!
+            </Text>
+            <Pressable
+              style={[styles.createFirstBtn, { backgroundColor: theme.primary }]}
+              onPress={() => router.push('/')}>
+              <Ionicons name="sparkles" size={16} color="#FFFFFF" />
+              <Text style={styles.createFirstBtnText}>Create Your First Look</Text>
+            </Pressable>
+          </View>
+        }
         renderItem={({ item }) => {
           const hair = getItem(item.hairId);
           const top = getItem(item.topId);
@@ -112,32 +164,45 @@ export default function OutfitsScreen() {
             <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
               {/* Card Header */}
               <View style={styles.cardHeader}>
-                <View style={styles.titleContainer}>
-                  <Text style={[styles.outfitName, { color: theme.text }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.cardTitle, { color: theme.text }]} numberOfLines={1}>
                     {item.name}
                   </Text>
-                  {item.dayTag && (
-                    <View
-                      style={[
-                        styles.dayTagBadge,
-                        { backgroundColor: theme.backgroundElement },
-                      ]}>
-                      <Text style={[styles.dayTagText, { color: theme.primary }]}>
-                        {item.dayTag}
-                      </Text>
-                    </View>
-                  )}
+                  <View style={styles.dayTagRow}>
+                    {item.dayTag && (
+                      <View style={[styles.dayPill, { backgroundColor: theme.primary }]}>
+                        <Text style={styles.dayPillText}>{item.dayTag}</Text>
+                      </View>
+                    )}
+                    <Text style={[styles.dateText, { color: theme.textSecondary }]}>
+                      Saved {item.createdAt ? item.createdAt.split('T')[0] : 'recently'}
+                    </Text>
+                  </View>
                 </View>
 
-                <Pressable
-                  onPress={() => toggleFavorite(item.id)}
-                  hitSlop={8}>
-                  <Ionicons
-                    name={item.isFavorite ? 'heart' : 'heart-outline'}
-                    size={20}
-                    color={item.isFavorite ? '#EF4444' : theme.textSecondary}
-                  />
-                </Pressable>
+                <View style={styles.cardHeaderActions}>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.iconBtn,
+                      { transform: [{ scale: pressed ? 0.85 : 1.0 }] },
+                    ]}
+                    onPress={() => toggleFavorite(item.id)}>
+                    <Ionicons
+                      name={item.isFavorite ? 'heart' : 'heart-outline'}
+                      size={20}
+                      color={item.isFavorite ? '#EF4444' : theme.textSecondary}
+                    />
+                  </Pressable>
+
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.iconBtn,
+                      { transform: [{ scale: pressed ? 0.85 : 1.0 }] },
+                    ]}
+                    onPress={() => handleDeleteOutfit(item)}>
+                    <Ionicons name="trash-outline" size={18} color={theme.textSecondary} />
+                  </Pressable>
+                </View>
               </View>
 
               {/* Stacked Preview Slices */}
@@ -191,7 +256,13 @@ export default function OutfitsScreen() {
                 </Text>
 
                 <Pressable
-                  style={[styles.wearBtn, { backgroundColor: theme.primary }]}
+                  style={({ pressed }) => [
+                    styles.wearBtn,
+                    {
+                      backgroundColor: theme.primary,
+                      transform: [{ scale: pressed ? 0.94 : 1.0 }],
+                    },
+                  ]}
                   onPress={() => handleWearToday(item)}>
                   <Ionicons name="checkmark-done" size={14} color="#FFFFFF" />
                   <Text style={styles.wearBtnText}>Wear Today</Text>
@@ -223,26 +294,66 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
   },
   headerSubtitle: {
-    fontSize: 11,
+    fontSize: 12,
     marginTop: 2,
   },
   newBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 18,
+    borderRadius: 20,
   },
   newBtnText: {
     color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
   },
   listContent: {
     padding: 16,
-    paddingBottom: 40,
     gap: 16,
+    paddingBottom: 40,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 24,
+    gap: 12,
+  },
+  emptyIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  emptyDesc: {
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 18,
+    maxWidth: 280,
+  },
+  createFirstBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 20,
+    marginTop: 10,
+  },
+  createFirstBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
   },
   card: {
     borderRadius: 18,
@@ -251,39 +362,51 @@ const styles = StyleSheet.create({
   },
   cardHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     padding: 14,
   },
-  titleContainer: {
+  cardTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  cardHeaderActions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    flex: 1,
   },
-  outfitName: {
-    fontSize: 15,
-    fontWeight: '700',
+  dayTagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
   },
-  dayTagBadge: {
+  dayPill: {
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 6,
   },
-  dayTagText: {
+  dayPillText: {
+    color: '#FFFFFF',
     fontSize: 10,
     fontWeight: '800',
+  },
+  dateText: {
+    fontSize: 11,
+  },
+  iconBtn: {
+    padding: 6,
   },
   slicesRow: {
     flexDirection: 'row',
     paddingHorizontal: 14,
-    gap: 8,
     paddingBottom: 14,
+    gap: 8,
   },
   sliceBox: {
     flex: 1,
-    height: 100,
-    borderRadius: 10,
+    height: 90,
+    borderRadius: 12,
     overflow: 'hidden',
     position: 'relative',
     backgroundColor: '#1E293B',
@@ -296,13 +419,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 4,
     left: 4,
-    backgroundColor: 'rgba(0,0,0,0.65)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
     color: '#FFFFFF',
     fontSize: 8,
     fontWeight: '800',
     paddingHorizontal: 4,
-    paddingVertical: 1,
+    paddingVertical: 2,
     borderRadius: 4,
+    letterSpacing: 0.5,
   },
   cardFooter: {
     flexDirection: 'row',
@@ -318,10 +442,10 @@ const styles = StyleSheet.create({
   wearBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
+    gap: 6,
+    paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 8,
+    borderRadius: 14,
   },
   wearBtnText: {
     color: '#FFFFFF',

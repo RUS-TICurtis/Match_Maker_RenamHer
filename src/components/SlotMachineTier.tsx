@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { WardrobeCategory, WardrobeItem } from '@/types/wardrobe';
 import { Colors } from '@/constants/theme';
 
@@ -50,12 +51,14 @@ export function SlotMachineTier({
     const offsetX = e.nativeEvent.contentOffset.x;
     const newIndex = Math.round(offsetX / SCREEN_WIDTH);
     if (newIndex >= 0 && newIndex < items.length && newIndex !== selectedIndex) {
+      Haptics.selectionAsync().catch(() => {});
       onSelectIndex(newIndex);
     }
   };
 
   const handlePrev = () => {
     if (isLocked || selectedIndex <= 0) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     const nextIdx = selectedIndex - 1;
     flatListRef.current?.scrollToIndex({ index: nextIdx, animated: true });
     onSelectIndex(nextIdx);
@@ -63,9 +66,17 @@ export function SlotMachineTier({
 
   const handleNext = () => {
     if (isLocked || selectedIndex >= items.length - 1) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     const nextIdx = selectedIndex + 1;
     flatListRef.current?.scrollToIndex({ index: nextIdx, animated: true });
     onSelectIndex(nextIdx);
+  };
+
+  const handleLockPress = () => {
+    Haptics.impactAsync(
+      isLocked ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Medium
+    ).catch(() => {});
+    onToggleLock();
   };
 
   return (
@@ -101,7 +112,7 @@ export function SlotMachineTier({
         )}
       />
 
-      {/* Subtle Floating Info Pill (Top-Left) */}
+      {/* Subtle Floating Info Pill (Top-Left) with position indicator */}
       {currentItem && (
         <View style={styles.floatingInfoPill}>
           <Text style={styles.categoryLabel}>{title.toUpperCase()}</Text>
@@ -112,23 +123,32 @@ export function SlotMachineTier({
           <Text style={styles.itemName} numberOfLines={1}>
             {currentItem.name}
           </Text>
+          {items.length > 1 && (
+            <>
+              <View style={styles.pillDivider} />
+              <Text style={styles.itemCounter}>
+                {selectedIndex + 1}/{items.length}
+              </Text>
+            </>
+          )}
         </View>
       )}
 
       {/* Minimal Floating Lock Icon (Top-Right) */}
       <Pressable
-        onPress={onToggleLock}
-        style={[
+        onPress={handleLockPress}
+        style={({ pressed }) => [
           styles.floatingLockBtn,
           {
-            backgroundColor: isLocked ? theme.gold : 'rgba(15, 23, 42, 0.4)',
+            backgroundColor: isLocked ? theme.gold : 'rgba(15, 23, 42, 0.5)',
+            transform: [{ scale: pressed ? 0.9 : 1.0 }],
           },
         ]}
-        hitSlop={10}
+        hitSlop={12}
         accessibilityLabel={isLocked ? `Unlock ${title}` : `Lock ${title}`}>
         <Ionicons
           name={isLocked ? 'lock-closed' : 'lock-open-outline'}
-          size={12}
+          size={13}
           color={isLocked ? '#000000' : '#FFFFFF'}
         />
       </Pressable>
@@ -143,22 +163,30 @@ export function SlotMachineTier({
         />
       )}
 
-      {/* Discrete Touch Indicators */}
+      {/* Refined Chevron Navigation Indicators */}
       {!isLocked && selectedIndex > 0 && (
         <Pressable
-          style={[styles.arrowBtn, styles.leftArrow]}
+          style={({ pressed }) => [
+            styles.arrowBtn,
+            styles.leftArrow,
+            { transform: [{ scale: pressed ? 0.88 : 1.0 }] },
+          ]}
           onPress={handlePrev}
-          hitSlop={12}>
-          <Ionicons name="chevron-back" size={16} color="rgba(255,255,255,0.6)" />
+          hitSlop={14}>
+          <Ionicons name="chevron-back" size={18} color="#FFFFFF" />
         </Pressable>
       )}
 
       {!isLocked && selectedIndex < items.length - 1 && (
         <Pressable
-          style={[styles.arrowBtn, styles.rightArrow]}
+          style={({ pressed }) => [
+            styles.arrowBtn,
+            styles.rightArrow,
+            { transform: [{ scale: pressed ? 0.88 : 1.0 }] },
+          ]}
           onPress={handleNext}
-          hitSlop={12}>
-          <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.6)" />
+          hitSlop={14}>
+          <Ionicons name="chevron-forward" size={18} color="#FFFFFF" />
         </Pressable>
       )}
     </View>
@@ -222,6 +250,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     flexShrink: 1,
   },
+  itemCounter: {
+    color: '#94A3B8',
+    fontSize: 9,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
   floatingLockBtn: {
     position: 'absolute',
     top: 6,
@@ -244,19 +278,21 @@ const styles = StyleSheet.create({
   arrowBtn: {
     position: 'absolute',
     top: '50%',
-    marginTop: -14,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+    marginTop: -16,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 5,
   },
   leftArrow: {
-    left: 6,
+    left: 8,
   },
   rightArrow: {
-    right: 6,
+    right: 8,
   },
 });

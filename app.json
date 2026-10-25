@@ -18,7 +18,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.Match_Maker_RenamHer"
+      "package": "com.curtis.matchmaker"
     },
     "web": {
       "output": "server",
@@ -32,6 +32,13 @@
           "backgroundColor": "#208AEF",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you add clothing and outfits to your closet.",
+          "cameraPermission": "The app uses your camera to let you take mirror selfies and photos of your wardrobe pieces."
         }
       ]
     ],
